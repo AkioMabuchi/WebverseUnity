@@ -13,6 +13,8 @@ public class Player : NetworkBehaviour
 
     [Networked] public NetworkString<_128> VrmToken { get; set; }
 
+    private readonly ReactiveProperty<string> _animatorTrigger = new("");
+
     private void Awake()
     {
         this.UpdateAsObservable()
@@ -21,6 +23,15 @@ public class Player : NetworkBehaviour
                 VrmManager.SetPosition(networkObject.Id.Raw, transform.position);
                 VrmManager.SetRotation(networkObject.Id.Raw, transform.rotation);
             }).AddTo(gameObject);
+
+        _animatorTrigger.Subscribe(animatorTrigger =>
+        {
+            Debug.Log(animatorTrigger);
+            if (HasInputAuthority)
+            {
+                RPC_SetAnimatorTrigger(animatorTrigger);
+            }
+        }).AddTo(gameObject);
     }
 
     private void Start()
@@ -34,7 +45,24 @@ public class Player : NetworkBehaviour
         {
             data.direction.Normalize();
             characterController.Move(data.direction * Runner.DeltaTime * 5.0f);
+
+            if (HasInputAuthority)
+            {
+                if (data.direction.sqrMagnitude > 0.5f)
+                {
+                    _animatorTrigger.Value = "Walk";
+                }
+                else
+                {
+                    _animatorTrigger.Value = "Wait";
+                }
+            }
         }
+    }
+
+    private void OnDestroy()
+    {
+        Debug.Log(networkObject.Id.Raw);
     }
 
     [Rpc(RpcSources.InputAuthority, RpcTargets.All)]
@@ -44,8 +72,8 @@ public class Player : NetworkBehaviour
     }
 
     [Rpc(RpcSources.InputAuthority, RpcTargets.All)]
-    private void RPC_SetTriggerAnimator()
+    private void RPC_SetAnimatorTrigger(string trigger)
     {
-        
+        VrmManager.SetAnimatorTrigger(networkObject.Id.Raw, trigger);
     }
 }

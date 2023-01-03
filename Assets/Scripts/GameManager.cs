@@ -58,6 +58,7 @@ public class GameManager : MonoBehaviour
                 {
                     _disposables.Add(Observable.Timer(TimeSpan.FromSeconds(0.1)).Subscribe(_ =>
                     {
+                        TitleScreen.Show();
                         _state.Value = State.LoginForm;
                     }).AddTo(gameObject));
                     break;
@@ -150,13 +151,15 @@ public class GameManager : MonoBehaviour
                 }
                 case State.Enter:
                 {
-                    _disposables.Add(this.UpdateAsObservable().Subscribe(_ =>
+                    _disposables.Add(BasicSpawner.OnJoined.Subscribe(_ =>
                     {
-                        if (Input.GetKeyDown(KeyCode.M))
-                        {
-                            BasicSpawner.Disconnect();
-                        }
+                        _state.Value = State.Main;
                     }).AddTo(gameObject));
+                    
+                    _actionsBeforeStateChange.Add(() =>
+                    {
+                        TitleScreen.Hide();
+                    });
                     BasicSpawner.StartGame();
                     break;
                 }

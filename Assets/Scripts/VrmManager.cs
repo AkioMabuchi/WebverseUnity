@@ -17,7 +17,7 @@ public abstract class PlayerVrm
 [Serializable]
 public class PlayerVrmNormal: PlayerVrm
 {
-
+    public Animator animator;
 }
 
 [Serializable]
@@ -31,6 +31,7 @@ public class VrmManager : MonoBehaviour
     private static readonly Subject<(uint playerId, string token)> _onLoadAvatar = new();
     private static readonly Subject<(uint playerId, Vector3 position)> _onSetPosition = new();
     private static readonly Subject<(uint playerId, Quaternion rotation)> _onSetRotation = new();
+    private static readonly Subject<(uint playerId, string trigger)> _onSetAnimatorTrigger = new();
     public static void LoadAvatar(uint playerId, string token)
     {
         _onLoadAvatar.OnNext((playerId, token));
@@ -46,6 +47,13 @@ public class VrmManager : MonoBehaviour
         _onSetRotation.OnNext((playerId, rotation));
     }
 
+    public static void SetAnimatorTrigger(uint playerId, string trigger)
+    {
+        _onSetAnimatorTrigger.OnNext((playerId, trigger));
+    }
+
+    [SerializeField] private RuntimeAnimatorController animatorController;
+    
     private readonly Dictionary<uint, PlayerVrm> _vrms = new();
     private readonly Dictionary<uint, Coroutine> _coroutinesLoadVrm = new();
     private void Awake()
@@ -77,6 +85,26 @@ public class VrmManager : MonoBehaviour
                 vrm.transform.rotation = rotation;
             }
         }).AddTo(gameObject);
+
+        _onSetAnimatorTrigger.Subscribe(tuple =>
+        {
+            var (playerId, trigger) = tuple;
+            if (_vrms.TryGetValue(playerId, out var vrm))
+            {
+                switch (vrm)
+                {
+                    case PlayerVrmNormal vrmNormal:
+                    {
+                        if (vrmNormal.animator != null)
+                        {
+                            vrmNormal.animator.SetTrigger(trigger);
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }).AddTo(gameObject);
     }
 
     private IEnumerator CoroutineLoadVrm(uint playerId, string token)
@@ -105,10 +133,18 @@ public class VrmManager : MonoBehaviour
                     var instance = context.Load();
                     instance.ShowMeshes();
 
-                    _vrms.Add(playerId, new PlayerVrmNormal
+                    var playerVrm = new PlayerVrmNormal
                     {
                         transform = instance.gameObject.transform
-                    });
+                    };
+
+                    if (instance.gameObject.TryGetComponent(out Animator animator))
+                    {
+                        animator.runtimeAnimatorController = animatorController;
+                        playerVrm.animator = animator;
+                    }
+
+                    _vrms.Add(playerId, playerVrm);
                 }
                 else
                 {

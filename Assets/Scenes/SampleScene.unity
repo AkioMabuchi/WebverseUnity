@@ -994,6 +994,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20ce25182177b45d4aea637f70d8c745, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  animatorController: {fileID: 9100000, guid: b9ebe9d7b4d814d94afff21f74f63b47, type: 2}
 --- !u!4 &319579343
 Transform:
   m_ObjectHideFlags: 0

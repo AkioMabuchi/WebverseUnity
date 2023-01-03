@@ -18,12 +18,22 @@ public class TitleScreen : MonoBehaviour
     private static readonly ReactiveProperty<string> _password = new("");
     public static IReadOnlyReactiveProperty<string> Password => _password;
 
+    private static readonly ReactiveProperty<bool> _isActive = new(false);
     private static readonly ReactiveProperty<bool> _isActiveLoginForm = new(false);
     private static readonly ReactiveProperty<bool> _isActiveEntranceForm = new(false);
     
     private static readonly ReactiveProperty<bool> _isInteractableLoginForm = new(false);
     private static readonly ReactiveProperty<string> _loginWarningMessage = new("");
 
+    public static void Show()
+    {
+        _isActive.Value = true;
+    }
+
+    public static void Hide()
+    {
+        _isActive.Value = false;
+    }
     public static void ShowLoginForm()
     {
         _isActiveLoginForm.Value = true;
@@ -69,6 +79,11 @@ public class TitleScreen : MonoBehaviour
 
     private void Awake()
     {
+        _isActive.Subscribe(isActive =>
+        {
+            canvasGroup.gameObject.SetActive(isActive);
+        }).AddTo(gameObject);
+        
         _isActiveLoginForm.Subscribe(isActive =>
         {
             canvasGroupLoginForm.gameObject.SetActive(isActive);

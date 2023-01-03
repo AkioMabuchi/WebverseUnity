@@ -10,8 +10,8 @@ using UnityEngine.SceneManagement;
 
 public class BasicSpawner : MonoBehaviour, INetworkRunnerCallbacks
 {
-    private static readonly Subject<Unit> _onConnectedServer = new();
-    public static IObservable<Unit> OnConnectedServer => _onConnectedServer;
+    private static readonly Subject<Unit> _onJoined = new();
+    public static IObservable<Unit> OnJoined => _onJoined;
 
     private static readonly Subject<Unit> _onStartGame = new();
     private static readonly Subject<Unit> _onDisconnect = new();
@@ -76,9 +76,11 @@ public class BasicSpawner : MonoBehaviour, INetworkRunnerCallbacks
             }
             _spawnedCharacters.Add(player, networkPlayerObject);
         }
-        
-        Debug.Log(runner.LocalPlayer);
-        Debug.Log(player);
+
+        if (runner.LocalPlayer == player)
+        {
+            _onJoined.OnNext(Unit.Default);
+        }
     }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
