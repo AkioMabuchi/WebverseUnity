@@ -1,21 +1,82 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using NetworkLogin;
 using UniGLTF;
+using UniRx;
 using UnityEngine;
 using UnityEngine.Networking;
 using VRM;
 
+namespace NetworkLogin
+{
+    [Serializable]
+    public class NetworkResult
+    {
+        public bool success;
+        public string userToken;
+        public string userName;
+        public Vrm[] userVrms;
+    }
+    
+    [Serializable]
+    public abstract class Result
+    {
+        
+    }
+
+    [Serializable]
+    public class Error : Result
+    {
+        
+    }
+    [Serializable]
+    public class Failed : Result
+    {
+        
+    }
+
+    [Serializable]
+    public class User : Result
+    {
+        public string token;
+        public string name;
+        public Vrm[] vrms;
+    }
+
+    [Serializable]
+    public class Vrm
+    {
+        public string token;
+        public string name;
+    }
+}
+
 public class NetworkManager : MonoBehaviour
 {
+    private static readonly Subject<Result> _onFinishLogin = new();
+    public static IObservable<Result> OnFinishLogin => _onFinishLogin;
+    private static readonly Subject<(string address, string password)> _onExternalLogin = new();
+    
     [SerializeField] private string accessKey;
     [SerializeField] private string secretAccessKey;
 
-    private IEnumerator CoroutineExternalLogin()
+    public static void ExternalLogin(string address, string password)
     {
+        _onExternalLogin.OnNext((address, password));
+    }
 
-        const string address = "akio";
-        const string password = "akiomabuchi";
+    private void Awake()
+    {
+        _onExternalLogin.Subscribe(tuple =>
+        {
+            var (address, password) = tuple;
+            StartCoroutine(CoroutineExternalLogin(address, password));
+        }).AddTo(gameObject);
+    }
+
+    private IEnumerator CoroutineExternalLogin(string address, string password)
+    {
         var form = new WWWForm();
         form.AddField("secret", secretAccessKey);
         form.AddField("address", address);
@@ -24,12 +85,48 @@ public class NetworkManager : MonoBehaviour
 
         yield return request.SendWebRequest();
 
+        var isSuccess = false;
+        NetworkResult result = null;
         if (request.result == UnityWebRequest.Result.Success)
         {
             if (request.responseCode == 200)
             {
-                Debug.Log(request.downloadHandler.text);
+                try
+                {
+                    result = JsonUtility.FromJson<NetworkResult>(request.downloadHandler.text);
+                    Debug.Log(result.userVrms);
+                    isSuccess = true;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    isSuccess = false;
+                }
             }
+        }
+
+        if (isSuccess)
+        {
+            if (result.success)
+            {
+
+                _onFinishLogin.OnNext(new User
+                {
+                    token = result.userToken,
+                    name = result.userName,
+                    vrms = result.userVrms
+                });
+            }
+            else
+            {
+                _onFinishLogin.OnNext(new Failed());
+
+            }
+
+        }
+        else
+        {
+            _onFinishLogin.OnNext(new Error());
         }
     }
 
@@ -52,7 +149,7 @@ public class NetworkManager : MonoBehaviour
                     imageUrl = "http://localhost:3000" + data.image;
 
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     Debug.Log(e);
                 }
@@ -78,19 +175,6 @@ public class NetworkManager : MonoBehaviour
 
     private IEnumerator CoroutineLoadVrm(string token)
     {
-        var request = UnityWebRequest.Get("http://localhost:3000/uploads/vrms/" + token + "/body.vrm");
-
-        yield return request.SendWebRequest();
-
-        if (request.result == UnityWebRequest.Result.Success && request.responseCode == 200)
-        {
-            using var gltfData = new GlbBinaryParser(request.downloadHandler.data, "").Parse();
-            var vrm = new VRMData(gltfData);
-            using var context = new VRMImporterContext(vrm);
-            Debug.Log("START");
-            var instance = context.Load();
-            Debug.Log("END");
-            instance.ShowMeshes();
-        }
+        yield break;
     }
 }

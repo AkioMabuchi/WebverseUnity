@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using NetworkLogin;
 using TMPro;
 using UniGLTF;
 using UniRx;
@@ -21,23 +22,149 @@ public class ApiSessionStatus
 }
 public class GameManager : MonoBehaviour
 {
-    [SerializeField] private TextMeshProUGUI textMeshPro;
-    [SerializeField] private RawImage rawImage;
-    
-    private readonly List<Coroutine> _coroutines = new();
-    private void Awake()
+    private enum State
     {
-
+        Start,
+        LoginForm,
+        Login,
+        Entrance,
+        Enter,
+        Main,
     }
 
-
-
-    private void HaltAllCoroutines()
+    private readonly ReactiveProperty<State> _state = new(State.Start);
+    private readonly List<IDisposable> _disposables = new();
+    private readonly List<Action> _actionsBeforeStateChange = new();
+    
+    private void Start()
     {
-        foreach (var coroutine in _coroutines)
+        _state.Subscribe(state =>
         {
-            StopCoroutine(coroutine);
-        }
-        _coroutines.Clear();
+            foreach (var action in _actionsBeforeStateChange)
+            {
+                action();
+            }
+            _actionsBeforeStateChange.Clear();
+            
+            foreach (var disposable in _disposables)
+            {
+                disposable.Dispose();
+            }
+            _disposables.Clear();
+
+            switch (state)
+            {
+                case State.Start:
+                {
+                    _disposables.Add(Observable.Timer(TimeSpan.FromSeconds(0.1)).Subscribe(_ =>
+                    {
+                        _state.Value = State.LoginForm;
+                    }).AddTo(gameObject));
+                    break;
+                }
+                case State.LoginForm:
+                {
+                    _disposables.Add(TitleScreen.OnClickButtonLogin.Subscribe(_ =>
+                    {
+                        if (TitleScreen.PlayerId.Value == "")
+                        {
+                            TitleScreen.SetLoginWarningMessage("ユーザーIDを入力してください");
+                        }
+                        else if (TitleScreen.Password.Value == "")
+                        {
+                            TitleScreen.SetLoginWarningMessage("パスワードを入力してください");
+                        }
+                        else
+                        {
+                            _state.Value = State.Login;
+                        }
+                    }).AddTo(gameObject));
+                    
+                    _actionsBeforeStateChange.Add(() =>
+                    {
+                        TitleScreen.HideLoginForm();
+                        TitleScreen.SetLoginWarningMessage("");
+                        TitleScreen.SetInteractableLoginForm(false); 
+                    });
+                    TitleScreen.ShowLoginForm();
+                    TitleScreen.SetInteractableLoginForm(true);
+                    break;
+                }
+                case State.Login:
+                {
+                    _disposables.Add(NetworkManager.OnFinishLogin.Subscribe(result =>
+                    {
+                        switch (result)
+                        {
+                            case User user:
+                            {
+                                var avatars = new List<(string token, string name)>();
+                                
+                                foreach (var avatar in user.vrms)
+                                {
+                                    avatars.Add((avatar.token, avatar.name));
+                                }
+
+                                MyAvatarModel.SetMyAvatars(avatars);
+                                _state.Value = State.Entrance;
+                                break;
+                            }
+                            case Failed:
+                            {
+                                TitleScreen.SetLoginWarningMessage("ユーザー名もしくはパスワードが違います");
+                                _state.Value = State.LoginForm;
+                                break;
+                            }
+                            case Error:
+                            {
+                                TitleScreen.SetLoginWarningMessage("ネットワークエラー");
+                                _state.Value = State.LoginForm;
+                                break;
+                            }
+                        }
+                    }).AddTo(gameObject));
+                    
+                    _actionsBeforeStateChange.Add(() =>
+                    {
+                        TitleScreen.HideLoginForm();
+                    });
+                    TitleScreen.ShowLoginForm();
+                    
+                    NetworkManager.ExternalLogin(TitleScreen.PlayerId.Value, TitleScreen.Password.Value);
+                    break;
+                }
+                case State.Entrance:
+                {
+                    _disposables.Add(TitleScreen.OnClickButtonEnter.Subscribe(_ =>
+                    {
+                        _state.Value = State.Enter;
+                    }).AddTo(gameObject));
+                    
+                    _actionsBeforeStateChange.Add(() =>
+                    {
+                        TitleScreen.HideEntranceForm();
+                    });
+                    
+                    TitleScreen.ShowEntranceForm();
+                    break;
+                }
+                case State.Enter:
+                {
+                    _disposables.Add(this.UpdateAsObservable().Subscribe(_ =>
+                    {
+                        if (Input.GetKeyDown(KeyCode.M))
+                        {
+                            BasicSpawner.Disconnect();
+                        }
+                    }).AddTo(gameObject));
+                    BasicSpawner.StartGame();
+                    break;
+                }
+                case State.Main:
+                {
+                    break;
+                }
+            }
+        }).AddTo(gameObject);
     }
 }
