@@ -165,6 +165,12 @@ public class GameManager : MonoBehaviour
                 }
                 case State.Main:
                 {
+                    _actionsBeforeStateChange.Add(() =>
+                    {
+                        MainScreen.Hide();
+                    });
+                    
+                    MainScreen.Show();
                     break;
                 }
             }

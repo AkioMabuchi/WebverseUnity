@@ -5,6 +5,7 @@ using Fusion;
 using UniRx;
 using UniRx.Triggers;
 using UnityEngine;
+using VRM;
 
 public class Player : NetworkBehaviour
 {
@@ -12,21 +13,35 @@ public class Player : NetworkBehaviour
     [SerializeField] private NetworkObject networkObject;
 
     [Networked] public NetworkString<_128> VrmToken { get; set; }
+    [Networked] public NetworkString<_64> PlayerName { get; set; }
 
     private readonly ReactiveProperty<string> _animatorTrigger = new("");
 
     private void Awake()
     {
+        MainScreen.OnClickButtonEmote
+            .Where(_ => HasInputAuthority)
+            .Subscribe(preset =>
+            {
+                RPC_Emote(preset);
+            }).AddTo(gameObject);
+
         this.UpdateAsObservable()
             .Subscribe(_ =>
             {
-                VrmManager.SetPosition(networkObject.Id.Raw, transform.position);
-                VrmManager.SetRotation(networkObject.Id.Raw, transform.rotation);
+                VrmManager.SetPosition(this, transform.position);
+                VrmManager.SetRotation(this, transform.rotation);
+            }).AddTo(gameObject);
+
+        this.FixedUpdateAsObservable()
+            .Where(_ => HasInputAuthority)
+            .Subscribe(_ =>
+            {
+                
             }).AddTo(gameObject);
 
         _animatorTrigger.Subscribe(animatorTrigger =>
         {
-            Debug.Log(animatorTrigger);
             if (HasInputAuthority)
             {
                 RPC_SetAnimatorTrigger(animatorTrigger);
@@ -36,19 +51,23 @@ public class Player : NetworkBehaviour
 
     private void Start()
     {
-        VrmManager.LoadAvatar(networkObject.Id.Raw, VrmToken.Value);
+        PlayerNamePlateManager.CreatePlate(this);
+        VrmManager.LoadAvatar(this, VrmToken.Value);
     }
 
     public override void FixedUpdateNetwork()
     {
         if (GetInput(out NetworkInputData data))
         {
-            data.direction.Normalize();
-            characterController.Move(data.direction * Runner.DeltaTime * 5.0f);
+            var rotation = transform.rotation.eulerAngles;
+            rotation += Vector3.up * data.direction.x * 3.0f;
+            transform.rotation = Quaternion.Euler(rotation);
+
+            characterController.Move(transform.rotation * Vector3.forward * data.direction.z * Runner.DeltaTime * 5.0f);
 
             if (HasInputAuthority)
             {
-                if (data.direction.sqrMagnitude > 0.5f)
+                if (data.direction.z > 0.2f)
                 {
                     _animatorTrigger.Value = "Walk";
                 }
@@ -56,24 +75,33 @@ public class Player : NetworkBehaviour
                 {
                     _animatorTrigger.Value = "Wait";
                 }
+                
+                CameraManager.SendMyPositionAndRotation(transform.position, transform.rotation);
             }
         }
     }
 
     private void OnDestroy()
     {
-        Debug.Log(networkObject.Id.Raw);
+        PlayerNamePlateManager.DiminishPlate(this);
+        VrmManager.DiminishVrm(this);
     }
 
     [Rpc(RpcSources.InputAuthority, RpcTargets.All)]
     private void RPC_LoadVrm()
     {
-        VrmManager.LoadAvatar(networkObject.Id.Raw, VrmToken.Value);
+        VrmManager.LoadAvatar(this, VrmToken.Value);
     }
 
     [Rpc(RpcSources.InputAuthority, RpcTargets.All)]
     private void RPC_SetAnimatorTrigger(string trigger)
     {
-        VrmManager.SetAnimatorTrigger(networkObject.Id.Raw, trigger);
+        VrmManager.SetAnimatorTrigger(this, trigger);
+    }
+
+    [Rpc(RpcSources.InputAuthority, RpcTargets.All)]
+    private void RPC_Emote(BlendShapePreset preset)
+    {
+        VrmManager.Emote(this, preset);
     }
 }

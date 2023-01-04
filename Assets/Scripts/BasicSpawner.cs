@@ -72,6 +72,7 @@ public class BasicSpawner : MonoBehaviour, INetworkRunnerCallbacks
                 if (networkPlayerObject.TryGetComponent(out Player component))
                 {
                     component.VrmToken = MyAvatarModel.Avatars.Value[MyAvatarModel.AvatarIndex.Value].token;
+                    component.PlayerName = "Akio";
                 }
             }
             _spawnedCharacters.Add(player, networkPlayerObject);
