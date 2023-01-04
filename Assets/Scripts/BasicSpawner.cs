@@ -102,11 +102,6 @@ public class BasicSpawner : MonoBehaviour, INetworkRunnerCallbacks
             data.direction += Vector3.forward;
         }
 
-        if (Input.GetKey(KeyCode.DownArrow))
-        {
-            data.direction += Vector3.back;
-        }
-
         if (Input.GetKey(KeyCode.LeftArrow))
         {
             data.direction += Vector3.left;
@@ -132,12 +127,12 @@ public class BasicSpawner : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnConnectedToServer(NetworkRunner runner)
     {
-        Debug.Log("こっちかな");
+
     }
 
     public void OnConnectedToServer()
     {
-        Debug.Log("あれれ");
+
     }
 
     public void OnDisconnectedFromServer(NetworkRunner runner)
@@ -152,7 +147,7 @@ public class BasicSpawner : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason)
     {
-        Debug.Log("Connect Failed");
+
     }
 
     public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message)

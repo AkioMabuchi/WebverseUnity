@@ -66,8 +66,13 @@ public class NetworkManager : MonoBehaviour
         _onExternalLogin.OnNext((address, password));
     }
 
+    private string _baseAddress = "https://localhost:3000/";
+
     private void Awake()
     {
+        #if !UNITY_EDITOR && UNITY_WEBGL
+        _baseAddress = "/";
+        #endif
         _onExternalLogin.Subscribe(tuple =>
         {
             var (address, password) = tuple;
@@ -81,7 +86,7 @@ public class NetworkManager : MonoBehaviour
         form.AddField("secret", secretAccessKey);
         form.AddField("address", address);
         form.AddField("password", password);
-        var request = UnityWebRequest.Post("http://localhost:3000/" + accessKey + "/login", form);
+        var request = UnityWebRequest.Post(_baseAddress + accessKey + "/login", form);
 
         yield return request.SendWebRequest();
 
@@ -130,11 +135,12 @@ public class NetworkManager : MonoBehaviour
         }
     }
 
+    /*
     private IEnumerator CoroutineExternalSession()
     {
         var form = new WWWForm();
         form.AddField("secret", secretAccessKey);
-        var request = UnityWebRequest.Post("http://localhost:3000/" + accessKey + "/session", form);
+        var request = UnityWebRequest.Post(_baseAddress + accessKey + "/session", form);
 
         yield return request.SendWebRequest();
 
@@ -146,8 +152,7 @@ public class NetworkManager : MonoBehaviour
                 try
                 {
                     var data = JsonUtility.FromJson<ApiSessionStatus>(request.downloadHandler.text);
-                    imageUrl = "http://localhost:3000" + data.image;
-
+                    imageUrl = _baseAddress + data.image;
                 }
                 catch (Exception e)
                 {
@@ -177,4 +182,6 @@ public class NetworkManager : MonoBehaviour
     {
         yield break;
     }
+    
+    */
 }

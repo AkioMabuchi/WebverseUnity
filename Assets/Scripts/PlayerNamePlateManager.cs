@@ -35,7 +35,11 @@ public class PlayerNamePlateManager : MonoBehaviour
 
         _onDiminishPlate.Subscribe(player =>
         {
-            _playerPlates.Remove(player);
+            if (_playerPlates.TryGetValue(player, out var plate))
+            {
+                Destroy(plate);
+                _playerPlates.Remove(player);
+            }
         }).AddTo(gameObject);
 
         this.UpdateAsObservable()
@@ -43,7 +47,8 @@ public class PlayerNamePlateManager : MonoBehaviour
             {
                 foreach (var pair in _playerPlates)
                 {
-                    pair.Value.SetPosition(pair.Key.transform.position + new Vector3(0.0f, 2.0f, 0.0f));
+                    pair.Value.SetPosition(pair.Key.transform.position +
+                                           new Vector3(0.0f, pair.Key.VrmHeight + 0.4f, 0.0f));
                 }
             }).AddTo(gameObject);
     }

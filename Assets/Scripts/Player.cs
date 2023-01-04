@@ -14,6 +14,7 @@ public class Player : NetworkBehaviour
 
     [Networked] public NetworkString<_128> VrmToken { get; set; }
     [Networked] public NetworkString<_64> PlayerName { get; set; }
+    [Networked] public float VrmHeight { get; set; }
 
     private readonly ReactiveProperty<string> _animatorTrigger = new("");
 

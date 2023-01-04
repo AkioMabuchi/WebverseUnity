@@ -168,9 +168,8 @@ public class VrmManager : MonoBehaviour
             if (_vrms.TryGetValue(player, out var vrm))
             {
                 Destroy(vrm.transform.gameObject);
+                _vrms.Remove(player);
             }
-
-            _vrms.Remove(player);
         }).AddTo(gameObject);
 
         this.FixedUpdateAsObservable()
@@ -269,6 +268,25 @@ public class VrmManager : MonoBehaviour
             if (vrmObject.TryGetComponent(out VRMBlendShapeProxy blendShapeProxy))
             {
                 playerVrm.blendShapeProxy = blendShapeProxy;
+            }
+
+            var vrmHeight = 0.0f;
+            foreach (var meshRenderer in vrmObject.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                if (meshRenderer.sharedMesh == null)
+                {
+                    continue;
+                }
+                
+                foreach (var vertex in meshRenderer.sharedMesh.vertices)
+                {
+                    vrmHeight = Mathf.Max(vrmHeight, vertex.y);
+                }
+            }
+
+            if (player.HasStateAuthority)
+            {
+                player.VrmHeight = vrmHeight;
             }
 
             _vrms.Add(player, playerVrm);
